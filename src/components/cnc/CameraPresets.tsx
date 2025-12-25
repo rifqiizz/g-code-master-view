@@ -1,62 +1,85 @@
-import { Box, Layers, RotateCcw, Eye } from 'lucide-react';
+import { useCallback } from 'react';
+import { Box, Eye, RotateCcw, Grid3X3 } from 'lucide-react';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { Vector3 } from 'three';
+import { useGCodeStore } from '@/store/gcode-store';
 
 interface CameraPresetsProps {
   controlsRef: OrbitControlsImpl | null;
 }
 
 const CameraPresets = ({ controlsRef }: CameraPresetsProps) => {
-  const presets = [
-    { 
-      name: 'Top', 
-      icon: Layers, 
-      position: new Vector3(0, 3, 0.01),
-      target: new Vector3(0, 0, 0)
-    },
-    { 
-      name: 'Front', 
-      icon: Box, 
-      position: new Vector3(0, 0.5, 3),
-      target: new Vector3(0, 0, 0)
-    },
-    { 
-      name: 'Iso', 
-      icon: Eye, 
-      position: new Vector3(2, 2, 2),
-      target: new Vector3(0, 0, 0)
-    },
-    { 
-      name: 'Reset', 
-      icon: RotateCcw, 
-      position: new Vector3(2, 2, 2),
-      target: new Vector3(0, 0, 0)
-    },
-  ];
+  const { parsedData, setCameraPreset } = useGCodeStore();
+  
+  const getCenterAndDistance = useCallback(() => {
+    if (!parsedData) {
+      return { center: [0, 0, 0] as [number, number, number], distance: 3 };
+    }
+    
+    const { bounds } = parsedData;
+    const maxDim = Math.max(
+      bounds.max[0] - bounds.min[0],
+      bounds.max[1] - bounds.min[1],
+      Math.abs(bounds.max[2] - bounds.min[2])
+    );
+    const scale = maxDim > 0 ? 1.5 / maxDim : 0.01;
+    
+    const centerX = ((bounds.max[0] + bounds.min[0]) / 2) * scale;
+    const centerY = ((bounds.max[2] + bounds.min[2]) / 2) * scale;
+    const centerZ = ((bounds.max[1] + bounds.min[1]) / 2) * scale;
+    
+    const maxSize = Math.max(
+      (bounds.max[0] - bounds.min[0]) * scale,
+      Math.abs(bounds.max[2] - bounds.min[2]) * scale,
+      (bounds.max[1] - bounds.min[1]) * scale,
+      0.5
+    );
+    
+    return { center: [centerX, centerY, centerZ] as [number, number, number], distance: maxSize * 2.5 };
+  }, [parsedData]);
 
-  const handlePresetClick = (preset: typeof presets[0]) => {
+  const setPreset = useCallback((preset: 'top' | 'front' | 'isometric' | 'reset') => {
     if (!controlsRef) return;
     
-    // Animate to position
-    const camera = controlsRef.object;
-    camera.position.copy(preset.position);
-    controlsRef.target.copy(preset.target);
+    const { center, distance } = getCenterAndDistance();
+    const [cx, cy, cz] = center;
+    
+    controlsRef.target.set(cx, cy, cz);
+    
+    switch (preset) {
+      case 'top':
+        controlsRef.object.position.set(cx, cy + distance, cz + 0.01);
+        break;
+      case 'front':
+        controlsRef.object.position.set(cx, cy + 0.5, cz + distance);
+        break;
+      case 'isometric':
+      case 'reset':
+        controlsRef.object.position.set(cx + distance * 0.7, cy + distance * 0.7, cz + distance * 0.7);
+        break;
+    }
+    
     controlsRef.update();
-  };
+    setCameraPreset(preset);
+  }, [controlsRef, getCenterAndDistance, setCameraPreset]);
 
   return (
     <div className="flex items-center gap-1">
-      {presets.map((preset) => (
-        <button
-          key={preset.name}
-          onClick={() => handlePresetClick(preset)}
-          className="control-button text-xs gap-1.5 px-2"
-          title={preset.name}
-        >
-          <preset.icon size={14} />
-          <span className="hidden sm:inline">{preset.name}</span>
-        </button>
-      ))}
+      <button onClick={() => setPreset('top')} className="control-button text-xs" title="Top View">
+        <Grid3X3 size={14} />
+        <span className="hidden sm:inline ml-1">Top</span>
+      </button>
+      <button onClick={() => setPreset('front')} className="control-button text-xs" title="Front View">
+        <Box size={14} />
+        <span className="hidden sm:inline ml-1">Front</span>
+      </button>
+      <button onClick={() => setPreset('isometric')} className="control-button text-xs" title="Isometric View">
+        <Eye size={14} />
+        <span className="hidden sm:inline ml-1">Iso</span>
+      </button>
+      <button onClick={() => setPreset('reset')} className="control-button text-xs" title="Reset Camera">
+        <RotateCcw size={14} />
+        <span className="hidden sm:inline ml-1">Reset</span>
+      </button>
     </div>
   );
 };

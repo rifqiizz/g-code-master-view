@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { useGCodeStore } from '@/store/gcode-store';
+import FileManager from './FileManager';
 
 const GCodeEditor = () => {
   const { gcodeText, setGcodeText, parsedData, currentLineIndex } = useGCodeStore();
@@ -71,6 +72,9 @@ const GCodeEditor = () => {
           {lines.length} lines
         </span>
       </div>
+      
+      {/* File Manager */}
+      <FileManager />
       
       {/* Read-only display with highlighting */}
       <div 
