@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Vector3, BufferGeometry, LineBasicMaterial, LineDashedMaterial } from 'three';
+import { Vector3, BufferGeometry, Float32BufferAttribute } from 'three';
 import { ToolpathPoint } from '@/lib/gcode-parser';
 
 interface ToolPathProps {
@@ -9,7 +9,7 @@ interface ToolPathProps {
 }
 
 const ToolPath = ({ toolpath, currentIndex, scale }: ToolPathProps) => {
-  const { rapidGeometry, cuttingGeometry, completedGeometry } = useMemo(() => {
+  const { rapidGeometry, cuttingGeometry, completedGeometry, rapidDashedGeometry } = useMemo(() => {
     const rapidPoints: Vector3[] = [];
     const cuttingPoints: Vector3[] = [];
     const completedPoints: Vector3[] = [];
@@ -42,13 +42,14 @@ const ToolPath = ({ toolpath, currentIndex, scale }: ToolPathProps) => {
     const cuttingGeo = new BufferGeometry().setFromPoints(cuttingPoints);
     const completedGeo = new BufferGeometry().setFromPoints(completedPoints);
     
-    // Compute line distances for dashed lines
-    rapidGeo.computeBoundingSphere();
+    // Create dashed line segments for rapid moves
+    const rapidDashedGeo = createDashedGeometry(rapidPoints, 0.03, 0.02);
     
     return {
       rapidGeometry: rapidGeo,
       cuttingGeometry: cuttingGeo,
       completedGeometry: completedGeo,
+      rapidDashedGeometry: rapidDashedGeo,
     };
   }, [toolpath, currentIndex, scale]);
 
@@ -64,12 +65,50 @@ const ToolPath = ({ toolpath, currentIndex, scale }: ToolPathProps) => {
         <lineBasicMaterial color="#1a5a63" linewidth={1} />
       </lineSegments>
       
-      {/* Remaining rapid moves */}
-      <lineSegments geometry={rapidGeometry}>
-        <lineBasicMaterial color="#3d444d" linewidth={1} />
+      {/* Remaining rapid moves - dashed effect via separate segments */}
+      <lineSegments geometry={rapidDashedGeometry}>
+        <lineBasicMaterial color="#5a5a6a" linewidth={1} transparent opacity={0.6} />
       </lineSegments>
     </group>
   );
 };
+
+// Create a dashed line geometry by breaking segments into dash/gap pairs
+function createDashedGeometry(
+  points: Vector3[], 
+  dashLength: number, 
+  gapLength: number
+): BufferGeometry {
+  const dashedPoints: Vector3[] = [];
+  
+  for (let i = 0; i < points.length; i += 2) {
+    if (i + 1 >= points.length) break;
+    
+    const start = points[i];
+    const end = points[i + 1];
+    const direction = new Vector3().subVectors(end, start);
+    const length = direction.length();
+    direction.normalize();
+    
+    let currentPos = 0;
+    let isDash = true;
+    
+    while (currentPos < length) {
+      const segmentLength = isDash ? dashLength : gapLength;
+      const segmentEnd = Math.min(currentPos + segmentLength, length);
+      
+      if (isDash) {
+        const dashStart = new Vector3().copy(start).addScaledVector(direction, currentPos);
+        const dashEnd = new Vector3().copy(start).addScaledVector(direction, segmentEnd);
+        dashedPoints.push(dashStart, dashEnd);
+      }
+      
+      currentPos = segmentEnd;
+      isDash = !isDash;
+    }
+  }
+  
+  return new BufferGeometry().setFromPoints(dashedPoints);
+}
 
 export default ToolPath;
