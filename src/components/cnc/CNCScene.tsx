@@ -5,6 +5,7 @@ import { Vector3, Box3 } from 'three';
 import { useGCodeStore } from '@/store/gcode-store';
 import ToolPointer from './ToolPointer';
 import ToolPath from './ToolPath';
+import CuttingWidth from './CuttingWidth';
 import Workpiece from './Workpiece';
 import GridFloor from './GridFloor';
 import AxisHelper from './AxisHelper';
@@ -22,6 +23,7 @@ const SceneContent = ({ onCameraRef, onAutoFit }: SceneContentProps) => {
     isPlaying, 
     playbackSpeed, 
     playbackProgress,
+    toolDiameter,
     setCurrentLine,
     setPlaybackProgress,
     setIsColliding,
@@ -178,6 +180,12 @@ const SceneContent = ({ onCameraRef, onAutoFit }: SceneContentProps) => {
       <GridFloor size={4} />
       <AxisHelper />
       <Workpiece bounds={parsedData.bounds} scale={scale} />
+      <CuttingWidth 
+        toolpath={parsedData.toolpath} 
+        currentIndex={currentLineIndex} 
+        scale={scale}
+        toolDiameter={toolDiameter}
+      />
       <ToolPath 
         toolpath={parsedData.toolpath} 
         currentIndex={currentLineIndex} 

@@ -1,6 +1,8 @@
 import { useRef, useEffect } from 'react';
 import { useGCodeStore } from '@/store/gcode-store';
 import FileManager from './FileManager';
+import ToolpathStats from './ToolpathStats';
+import ToolSettings from './ToolSettings';
 
 const GCodeEditor = () => {
   const { gcodeText, setGcodeText, parsedData, currentLineIndex } = useGCodeStore();
@@ -95,6 +97,12 @@ const GCodeEditor = () => {
         ))}
       </div>
       
+      {/* Tool Settings */}
+      <ToolSettings />
+      
+      {/* Toolpath Statistics */}
+      <ToolpathStats />
+      
       {/* Editable textarea */}
       <div className="border-t border-border">
         <div className="panel-header text-xs">Edit Code</div>
@@ -102,7 +110,7 @@ const GCodeEditor = () => {
           ref={textareaRef}
           value={gcodeText}
           onChange={handleTextChange}
-          className="w-full h-32 p-2 bg-background font-mono text-sm resize-none 
+          className="w-full h-24 p-2 bg-background font-mono text-sm resize-none 
                      focus:outline-none focus:ring-1 focus:ring-primary scrollbar-thin"
           spellCheck={false}
         />

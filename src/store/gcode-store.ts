@@ -29,6 +29,10 @@ interface GCodeState {
   isColliding: boolean;
   setIsColliding: (colliding: boolean) => void;
   
+  // Tool settings
+  toolDiameter: number;
+  setToolDiameter: (diameter: number) => void;
+  
   // Actions
   play: () => void;
   pause: () => void;
@@ -61,6 +65,7 @@ const loadPersistedState = () => {
         currentFileName: parsed.currentFileName || 'sample.nc',
         playbackSpeed: parsed.playbackSpeed || 1,
         cameraPreset: parsed.cameraPreset || 'isometric',
+        toolDiameter: parsed.toolDiameter || 3,
       };
     }
   } catch (e) {
@@ -71,6 +76,7 @@ const loadPersistedState = () => {
     currentFileName: 'sample.nc',
     playbackSpeed: 1,
     cameraPreset: 'isometric',
+    toolDiameter: 3,
   };
 };
 
@@ -90,6 +96,7 @@ export const useGCodeStore = create<GCodeState>((set, get) => ({
       currentFileName: get().currentFileName,
       playbackSpeed: get().playbackSpeed,
       cameraPreset: get().cameraPreset,
+      toolDiameter: get().toolDiameter,
     }));
   },
   
@@ -100,6 +107,7 @@ export const useGCodeStore = create<GCodeState>((set, get) => ({
       currentFileName: name,
       playbackSpeed: get().playbackSpeed,
       cameraPreset: get().cameraPreset,
+      toolDiameter: get().toolDiameter,
     }));
   },
   
@@ -116,11 +124,24 @@ export const useGCodeStore = create<GCodeState>((set, get) => ({
       currentFileName: get().currentFileName,
       playbackSpeed: get().playbackSpeed,
       cameraPreset: preset,
+      toolDiameter: get().toolDiameter,
     }));
   },
   
   isColliding: false,
   setIsColliding: (colliding) => set({ isColliding: colliding }),
+  
+  toolDiameter: persistedState.toolDiameter,
+  setToolDiameter: (diameter) => {
+    set({ toolDiameter: diameter });
+    localStorage.setItem('cnc-viewer-state', JSON.stringify({
+      gcodeText: get().gcodeText,
+      currentFileName: get().currentFileName,
+      playbackSpeed: get().playbackSpeed,
+      cameraPreset: get().cameraPreset,
+      toolDiameter: diameter,
+    }));
+  },
   
   play: () => set({ isPlaying: true }),
   pause: () => set({ isPlaying: false }),
@@ -148,6 +169,7 @@ export const useGCodeStore = create<GCodeState>((set, get) => ({
       currentFileName: get().currentFileName,
       playbackSpeed: speed,
       cameraPreset: get().cameraPreset,
+      toolDiameter: get().toolDiameter,
     }));
   },
   
