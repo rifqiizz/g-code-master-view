@@ -3,6 +3,9 @@ import { useGCodeStore } from '@/store/gcode-store';
 import FileManager from './FileManager';
 import ToolpathStats from './ToolpathStats';
 import ToolSettings from './ToolSettings';
+import VisibilityPanel from './VisibilityPanel';
+import ValidationPanel from './ValidationPanel';
+import WorkpieceSettings from './WorkpieceSettings';
 
 const GCodeEditor = () => {
   const { gcodeText, setGcodeText, parsedData, currentLineIndex } = useGCodeStore();
@@ -81,7 +84,7 @@ const GCodeEditor = () => {
       {/* Read-only display with highlighting */}
       <div 
         ref={editorRef}
-        className="flex-1 overflow-y-auto scrollbar-thin select-text"
+        className="flex-1 overflow-y-auto scrollbar-thin select-text min-h-0"
       >
         {lines.map((line, index) => (
           <div
@@ -97,14 +100,26 @@ const GCodeEditor = () => {
         ))}
       </div>
       
-      {/* Tool Settings */}
-      <ToolSettings />
-      
-      {/* Toolpath Statistics */}
-      <ToolpathStats />
+      {/* Panels - scrollable section */}
+      <div className="flex-shrink-0 overflow-y-auto scrollbar-thin max-h-[50%]">
+        {/* Tool Settings */}
+        <ToolSettings />
+        
+        {/* Workpiece Settings */}
+        <WorkpieceSettings />
+        
+        {/* Visibility Panel */}
+        <VisibilityPanel />
+        
+        {/* Validation Panel */}
+        <ValidationPanel />
+        
+        {/* Toolpath Statistics */}
+        <ToolpathStats />
+      </div>
       
       {/* Editable textarea */}
-      <div className="border-t border-border">
+      <div className="border-t border-border flex-shrink-0">
         <div className="panel-header text-xs">Edit Code</div>
         <textarea
           ref={textareaRef}

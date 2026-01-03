@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useCallback } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import { Vector3, Box3 } from 'three';
 import { useGCodeStore } from '@/store/gcode-store';
 import ToolPointer from './ToolPointer';
 import ToolPath from './ToolPath';
@@ -24,6 +23,7 @@ const SceneContent = ({ onCameraRef, onAutoFit }: SceneContentProps) => {
     playbackSpeed, 
     playbackProgress,
     toolDiameter,
+    visibility,
     setCurrentLine,
     setPlaybackProgress,
     setIsColliding,
@@ -57,21 +57,17 @@ const SceneContent = ({ onCameraRef, onAutoFit }: SceneContentProps) => {
     if (parsedData && controlsRef.current) {
       const { bounds } = parsedData;
       
-      // Calculate center
       const centerX = ((bounds.max[0] + bounds.min[0]) / 2) * scale;
-      const centerY = ((bounds.max[2] + bounds.min[2]) / 2) * scale; // Z -> Y
-      const centerZ = ((bounds.max[1] + bounds.min[1]) / 2) * scale; // Y -> Z
+      const centerY = ((bounds.max[2] + bounds.min[2]) / 2) * scale;
+      const centerZ = ((bounds.max[1] + bounds.min[1]) / 2) * scale;
       
-      // Calculate size for camera distance
       const sizeX = (bounds.max[0] - bounds.min[0]) * scale;
       const sizeY = Math.abs(bounds.max[2] - bounds.min[2]) * scale;
       const sizeZ = (bounds.max[1] - bounds.min[1]) * scale;
       const maxSize = Math.max(sizeX, sizeY, sizeZ, 0.5);
       
-      // Set camera target to center
       controlsRef.current.target.set(centerX, centerY, centerZ);
       
-      // Position camera at isometric view
       const distance = maxSize * 2.5;
       camera.position.set(
         centerX + distance,
@@ -91,15 +87,14 @@ const SceneContent = ({ onCameraRef, onAutoFit }: SceneContentProps) => {
     const nextIndex = Math.min(currentLineIndex + 1, parsedData.toolpath.length - 1);
     const nextPoint = parsedData.toolpath[nextIndex];
     
-    // Interpolate between current and next point based on playbackProgress
     const x = currentPoint.position[0] + (nextPoint.position[0] - currentPoint.position[0]) * playbackProgress;
     const y = currentPoint.position[1] + (nextPoint.position[1] - currentPoint.position[1]) * playbackProgress;
     const z = currentPoint.position[2] + (nextPoint.position[2] - currentPoint.position[2]) * playbackProgress;
     
     return [
       x * scale,
-      z * scale, // Z becomes Y
-      y * scale, // Y becomes Z
+      z * scale,
+      y * scale,
     ];
   }, [parsedData, currentLineIndex, playbackProgress, scale]);
 
@@ -113,12 +108,10 @@ const SceneContent = ({ onCameraRef, onAutoFit }: SceneContentProps) => {
     const { bounds } = parsedData;
     const [toolX, toolY, toolZ] = toolPosition;
     
-    // Convert tool position back to CNC coords
     const cncX = toolX / scale;
-    const cncZ = toolY / scale; // Y back to Z
-    const cncY = toolZ / scale; // Z back to Y
+    const cncZ = toolY / scale;
+    const cncY = toolZ / scale;
     
-    // Check if tool is within workpiece XY bounds and below Z=0
     const withinX = cncX >= bounds.min[0] && cncX <= bounds.max[0];
     const withinY = cncY >= bounds.min[1] && cncY <= bounds.max[1];
     const belowSurface = cncZ < 0;
@@ -136,15 +129,11 @@ const SceneContent = ({ onCameraRef, onAutoFit }: SceneContentProps) => {
       return;
     }
     
-    // Get duration for current segment
     const segmentDuration = getSegmentDuration(currentLineIndex, currentLineIndex + 1);
-    
-    // Scale time by playback speed and a visualization factor (make it visible)
-    const timeScale = playbackSpeed * 2; // 2x makes movements visible
+    const timeScale = playbackSpeed * 2;
     accumulatorRef.current += (delta * timeScale) / segmentDuration;
     
     if (accumulatorRef.current >= 1) {
-      // Move to next segment
       accumulatorRef.current = 0;
       const newIndex = currentLineIndex + 1;
       setCurrentLine(newIndex);
@@ -153,7 +142,6 @@ const SceneContent = ({ onCameraRef, onAutoFit }: SceneContentProps) => {
         useGCodeStore.getState().pause();
       }
     } else {
-      // Update progress within segment
       setPlaybackProgress(accumulatorRef.current);
     }
   });
@@ -176,22 +164,25 @@ const SceneContent = ({ onCameraRef, onAutoFit }: SceneContentProps) => {
         maxDistance={10}
       />
       
-      {/* Scene elements */}
-      <GridFloor size={4} />
-      <AxisHelper />
-      <Workpiece bounds={parsedData.bounds} scale={scale} />
-      <CuttingWidth 
-        toolpath={parsedData.toolpath} 
-        currentIndex={currentLineIndex} 
-        scale={scale}
-        toolDiameter={toolDiameter}
-      />
+      {/* Scene elements with visibility toggles */}
+      {visibility.grid && <GridFloor size={4} />}
+      {visibility.axes && <AxisHelper />}
+      {visibility.workpiece && <Workpiece bounds={parsedData.bounds} scale={scale} />}
+      {visibility.cuttingWidth && (
+        <CuttingWidth 
+          toolpath={parsedData.toolpath} 
+          currentIndex={currentLineIndex} 
+          scale={scale}
+          toolDiameter={toolDiameter}
+        />
+      )}
       <ToolPath 
         toolpath={parsedData.toolpath} 
         currentIndex={currentLineIndex} 
-        scale={scale} 
+        scale={scale}
+        showRapidMoves={visibility.rapidMoves}
       />
-      <ToolPointer position={toolPosition} sceneScale={scale} />
+      {visibility.toolPointer && <ToolPointer position={toolPosition} sceneScale={scale} />}
     </>
   );
 };
@@ -208,7 +199,7 @@ const CNCScene = ({ onCameraRef }: CNCSceneProps) => {
   return (
     <Canvas
       camera={{ position: [2, 2, 2], fov: 45 }}
-      gl={{ antialias: true }}
+      gl={{ antialias: true, preserveDrawingBuffer: true }}
       style={{ background: '#0f1115' }}
     >
       <color attach="background" args={['#0f1115']} />

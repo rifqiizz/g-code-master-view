@@ -1,14 +1,15 @@
 import { useMemo } from 'react';
-import { Vector3, BufferGeometry, Float32BufferAttribute } from 'three';
+import { Vector3, BufferGeometry } from 'three';
 import { ToolpathPoint } from '@/lib/gcode-parser';
 
 interface ToolPathProps {
   toolpath: ToolpathPoint[];
   currentIndex: number;
   scale: number;
+  showRapidMoves?: boolean;
 }
 
-const ToolPath = ({ toolpath, currentIndex, scale }: ToolPathProps) => {
+const ToolPath = ({ toolpath, currentIndex, scale, showRapidMoves = true }: ToolPathProps) => {
   const { rapidGeometry, cuttingGeometry, completedGeometry, rapidDashedGeometry } = useMemo(() => {
     const rapidPoints: Vector3[] = [];
     const cuttingPoints: Vector3[] = [];
@@ -66,9 +67,11 @@ const ToolPath = ({ toolpath, currentIndex, scale }: ToolPathProps) => {
       </lineSegments>
       
       {/* Remaining rapid moves - dashed effect via separate segments */}
-      <lineSegments geometry={rapidDashedGeometry}>
-        <lineBasicMaterial color="#5a5a6a" linewidth={1} transparent opacity={0.6} />
-      </lineSegments>
+      {showRapidMoves && (
+        <lineSegments geometry={rapidDashedGeometry}>
+          <lineBasicMaterial color="#5a5a6a" linewidth={1} transparent opacity={0.6} />
+        </lineSegments>
+      )}
     </group>
   );
 };
