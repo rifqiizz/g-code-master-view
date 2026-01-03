@@ -4,14 +4,30 @@ import GCodeEditor from '@/components/cnc/GCodeEditor';
 import PlaybackControls from '@/components/cnc/PlaybackControls';
 import CameraPresets from '@/components/cnc/CameraPresets';
 import StatusBar from '@/components/cnc/StatusBar';
+import ScreenshotButton from '@/components/cnc/ScreenshotButton';
+import KeyboardShortcutsHelp from '@/components/cnc/KeyboardShortcutsHelp';
+import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 const Index = () => {
   const [cameraControls, setCameraControls] = useState<OrbitControlsImpl | null>(null);
+  const [cameraPresetTrigger, setCameraPresetTrigger] = useState<string | null>(null);
 
   const handleCameraRef = useCallback((ref: OrbitControlsImpl | null) => {
     setCameraControls(ref);
   }, []);
+
+  const handleCameraPreset = useCallback((preset: string) => {
+    setCameraPresetTrigger(preset);
+    // Reset after a tick to allow re-triggering
+    setTimeout(() => setCameraPresetTrigger(null), 100);
+  }, []);
+
+  // Enable keyboard shortcuts
+  useKeyboardShortcuts({
+    controlsRef: cameraControls,
+    onCameraPreset: handleCameraPreset,
+  });
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background">
@@ -32,7 +48,11 @@ const Index = () => {
             <span className="text-xs text-muted-foreground">v1.0</span>
           </div>
           
-          <CameraPresets controlsRef={cameraControls} />
+          <div className="flex items-center gap-2">
+            <ScreenshotButton />
+            <KeyboardShortcutsHelp />
+            <CameraPresets controlsRef={cameraControls} triggerPreset={cameraPresetTrigger} />
+          </div>
         </header>
 
         {/* 3D Viewer */}

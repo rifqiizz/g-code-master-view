@@ -1,13 +1,14 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Box, Eye, RotateCcw, Grid3X3 } from 'lucide-react';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { useGCodeStore } from '@/store/gcode-store';
 
 interface CameraPresetsProps {
   controlsRef: OrbitControlsImpl | null;
+  triggerPreset?: string | null;
 }
 
-const CameraPresets = ({ controlsRef }: CameraPresetsProps) => {
+const CameraPresets = ({ controlsRef, triggerPreset }: CameraPresetsProps) => {
   const { parsedData, setCameraPreset } = useGCodeStore();
   
   const getCenterAndDistance = useCallback(() => {
@@ -62,21 +63,28 @@ const CameraPresets = ({ controlsRef }: CameraPresetsProps) => {
     setCameraPreset(preset);
   }, [controlsRef, getCenterAndDistance, setCameraPreset]);
 
+  // Handle keyboard shortcut triggers
+  useEffect(() => {
+    if (triggerPreset && ['top', 'front', 'isometric', 'reset'].includes(triggerPreset)) {
+      setPreset(triggerPreset as 'top' | 'front' | 'isometric' | 'reset');
+    }
+  }, [triggerPreset, setPreset]);
+
   return (
     <div className="flex items-center gap-1">
-      <button onClick={() => setPreset('top')} className="control-button text-xs" title="Top View">
+      <button onClick={() => setPreset('top')} className="control-button text-xs" title="Top View (1)">
         <Grid3X3 size={14} />
         <span className="hidden sm:inline ml-1">Top</span>
       </button>
-      <button onClick={() => setPreset('front')} className="control-button text-xs" title="Front View">
+      <button onClick={() => setPreset('front')} className="control-button text-xs" title="Front View (2)">
         <Box size={14} />
         <span className="hidden sm:inline ml-1">Front</span>
       </button>
-      <button onClick={() => setPreset('isometric')} className="control-button text-xs" title="Isometric View">
+      <button onClick={() => setPreset('isometric')} className="control-button text-xs" title="Isometric View (3)">
         <Eye size={14} />
         <span className="hidden sm:inline ml-1">Iso</span>
       </button>
-      <button onClick={() => setPreset('reset')} className="control-button text-xs" title="Reset Camera">
+      <button onClick={() => setPreset('reset')} className="control-button text-xs" title="Reset Camera (4)">
         <RotateCcw size={14} />
         <span className="hidden sm:inline ml-1">Reset</span>
       </button>

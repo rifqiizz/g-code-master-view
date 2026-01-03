@@ -1,7 +1,24 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { parseGCode, ParsedGCode } from '@/lib/gcode-parser';
 import { GCODE_TEMPLATES } from '@/lib/gcode-templates';
+
+// Visibility settings interface
+interface VisibilityState {
+  grid: boolean;
+  axes: boolean;
+  rapidMoves: boolean;
+  cuttingWidth: boolean;
+  workpiece: boolean;
+  toolPointer: boolean;
+}
+
+// Workpiece configuration interface
+interface WorkpieceConfig {
+  manualMode: boolean;
+  material: string;
+  dimensions: { x: number; y: number; z: number };
+  origin: { x: number; y: number; z: number };
+}
 
 interface GCodeState {
   // Raw G-code text
@@ -19,7 +36,7 @@ interface GCodeState {
   isPlaying: boolean;
   currentLineIndex: number;
   playbackSpeed: number;
-  playbackProgress: number; // 0-1 within current segment
+  playbackProgress: number;
   
   // Camera state
   cameraPreset: string;
@@ -32,6 +49,16 @@ interface GCodeState {
   // Tool settings
   toolDiameter: number;
   setToolDiameter: (diameter: number) => void;
+  
+  // Visibility settings
+  visibility: VisibilityState;
+  toggleVisibility: (key: keyof VisibilityState) => void;
+  
+  // Workpiece configuration
+  workpieceConfig: WorkpieceConfig;
+  setWorkpieceConfig: (config: Partial<WorkpieceConfig>) => void;
+  setWorkpieceMaterial: (material: string) => void;
+  setWorkpieceManualMode: (manual: boolean) => void;
   
   // Actions
   play: () => void;
@@ -54,6 +81,22 @@ interface GCodeState {
 
 const DEFAULT_GCODE = GCODE_TEMPLATES.find(t => t.id === 'sample')?.gcode || '';
 
+const DEFAULT_VISIBILITY: VisibilityState = {
+  grid: true,
+  axes: true,
+  rapidMoves: true,
+  cuttingWidth: true,
+  workpiece: true,
+  toolPointer: true,
+};
+
+const DEFAULT_WORKPIECE_CONFIG: WorkpieceConfig = {
+  manualMode: false,
+  material: 'aluminum',
+  dimensions: { x: 100, y: 100, z: 20 },
+  origin: { x: 0, y: 0, z: 0 },
+};
+
 // Load persisted state
 const loadPersistedState = () => {
   try {
@@ -66,6 +109,8 @@ const loadPersistedState = () => {
         playbackSpeed: parsed.playbackSpeed || 1,
         cameraPreset: parsed.cameraPreset || 'isometric',
         toolDiameter: parsed.toolDiameter || 3,
+        visibility: { ...DEFAULT_VISIBILITY, ...parsed.visibility },
+        workpieceConfig: { ...DEFAULT_WORKPIECE_CONFIG, ...parsed.workpieceConfig },
       };
     }
   } catch (e) {
@@ -77,7 +122,19 @@ const loadPersistedState = () => {
     playbackSpeed: 1,
     cameraPreset: 'isometric',
     toolDiameter: 3,
+    visibility: DEFAULT_VISIBILITY,
+    workpieceConfig: DEFAULT_WORKPIECE_CONFIG,
   };
+};
+
+const persistState = (state: Partial<GCodeState>) => {
+  try {
+    const current = localStorage.getItem('cnc-viewer-state');
+    const parsed = current ? JSON.parse(current) : {};
+    localStorage.setItem('cnc-viewer-state', JSON.stringify({ ...parsed, ...state }));
+  } catch (e) {
+    console.warn('Failed to persist state');
+  }
 };
 
 const persistedState = loadPersistedState();
@@ -90,25 +147,12 @@ export const useGCodeStore = create<GCodeState>((set, get) => ({
   setGcodeText: (text) => {
     const parsed = parseGCode(text);
     set({ gcodeText: text, parsedData: parsed, currentLineIndex: 0, playbackProgress: 0 });
-    // Persist
-    localStorage.setItem('cnc-viewer-state', JSON.stringify({
-      gcodeText: text,
-      currentFileName: get().currentFileName,
-      playbackSpeed: get().playbackSpeed,
-      cameraPreset: get().cameraPreset,
-      toolDiameter: get().toolDiameter,
-    }));
+    persistState({ gcodeText: text });
   },
   
   setCurrentFileName: (name) => {
     set({ currentFileName: name });
-    localStorage.setItem('cnc-viewer-state', JSON.stringify({
-      gcodeText: get().gcodeText,
-      currentFileName: name,
-      playbackSpeed: get().playbackSpeed,
-      cameraPreset: get().cameraPreset,
-      toolDiameter: get().toolDiameter,
-    }));
+    persistState({ currentFileName: name });
   },
   
   isPlaying: false,
@@ -119,13 +163,7 @@ export const useGCodeStore = create<GCodeState>((set, get) => ({
   cameraPreset: persistedState.cameraPreset,
   setCameraPreset: (preset) => {
     set({ cameraPreset: preset });
-    localStorage.setItem('cnc-viewer-state', JSON.stringify({
-      gcodeText: get().gcodeText,
-      currentFileName: get().currentFileName,
-      playbackSpeed: get().playbackSpeed,
-      cameraPreset: preset,
-      toolDiameter: get().toolDiameter,
-    }));
+    persistState({ cameraPreset: preset });
   },
   
   isColliding: false,
@@ -134,18 +172,37 @@ export const useGCodeStore = create<GCodeState>((set, get) => ({
   toolDiameter: persistedState.toolDiameter,
   setToolDiameter: (diameter) => {
     set({ toolDiameter: diameter });
-    localStorage.setItem('cnc-viewer-state', JSON.stringify({
-      gcodeText: get().gcodeText,
-      currentFileName: get().currentFileName,
-      playbackSpeed: get().playbackSpeed,
-      cameraPreset: get().cameraPreset,
-      toolDiameter: diameter,
-    }));
+    persistState({ toolDiameter: diameter });
+  },
+  
+  // Visibility
+  visibility: persistedState.visibility,
+  toggleVisibility: (key) => {
+    const newVisibility = { ...get().visibility, [key]: !get().visibility[key] };
+    set({ visibility: newVisibility });
+    persistState({ visibility: newVisibility });
+  },
+  
+  // Workpiece config
+  workpieceConfig: persistedState.workpieceConfig,
+  setWorkpieceConfig: (config) => {
+    const newConfig = { ...get().workpieceConfig, ...config };
+    set({ workpieceConfig: newConfig });
+    persistState({ workpieceConfig: newConfig });
+  },
+  setWorkpieceMaterial: (material) => {
+    const newConfig = { ...get().workpieceConfig, material };
+    set({ workpieceConfig: newConfig });
+    persistState({ workpieceConfig: newConfig });
+  },
+  setWorkpieceManualMode: (manual) => {
+    const newConfig = { ...get().workpieceConfig, manualMode: manual };
+    set({ workpieceConfig: newConfig });
+    persistState({ workpieceConfig: newConfig });
   },
   
   play: () => set({ isPlaying: true }),
   pause: () => set({ isPlaying: false }),
-  
   stop: () => set({ isPlaying: false, currentLineIndex: 0, playbackProgress: 0 }),
   
   stepForward: () => {
@@ -164,13 +221,7 @@ export const useGCodeStore = create<GCodeState>((set, get) => ({
   
   setPlaybackSpeed: (speed) => {
     set({ playbackSpeed: speed });
-    localStorage.setItem('cnc-viewer-state', JSON.stringify({
-      gcodeText: get().gcodeText,
-      currentFileName: get().currentFileName,
-      playbackSpeed: speed,
-      cameraPreset: get().cameraPreset,
-      toolDiameter: get().toolDiameter,
-    }));
+    persistState({ playbackSpeed: speed });
   },
   
   setPlaybackProgress: (progress) => set({ playbackProgress: progress }),
@@ -203,7 +254,6 @@ export const useGCodeStore = create<GCodeState>((set, get) => ({
     }
   },
   
-  // Compute adaptive pointer scale based on bounding box
   getAdaptivePointerScale: () => {
     const { parsedData } = get();
     if (!parsedData) return 0.02;
@@ -215,40 +265,32 @@ export const useGCodeStore = create<GCodeState>((set, get) => ({
       Math.abs(bounds.max[2] - bounds.min[2])
     );
     
-    // 2% of longest axis, clamped between 0.01 and 0.05
     const scale = Math.max(0.01, Math.min(0.05, maxDim * 0.02));
     return scale;
   },
   
-  // Calculate segment duration based on distance and feed rate
   getSegmentDuration: (fromIndex, toIndex) => {
     const { parsedData } = get();
     if (!parsedData || fromIndex >= parsedData.toolpath.length || toIndex >= parsedData.toolpath.length) {
-      return 0.1; // Default duration
+      return 0.1;
     }
     
     const from = parsedData.toolpath[fromIndex];
     const to = parsedData.toolpath[toIndex];
     
-    // Calculate distance
     const dx = to.position[0] - from.position[0];
     const dy = to.position[1] - from.position[1];
     const dz = to.position[2] - from.position[2];
     const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
     
-    // Get feed rate from the command at this line
     const command = parsedData.commands.find(c => c.line === to.lineIndex);
-    let feedRate = command?.f || 500; // Default feed rate mm/min
+    let feedRate = command?.f || 500;
     
-    // Rapid moves are faster
     if (to.type === 'rapid') {
-      feedRate = 2000; // Rapid traverse speed
+      feedRate = 2000;
     }
     
-    // Convert feed rate from mm/min to mm/sec
     const feedRateMmSec = feedRate / 60;
-    
-    // Duration in seconds (minimum 0.01s to prevent instant jumps)
     const duration = Math.max(0.01, distance / feedRateMmSec);
     
     return duration;
