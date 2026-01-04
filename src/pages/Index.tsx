@@ -6,12 +6,18 @@ import CameraPresets from '@/components/cnc/CameraPresets';
 import StatusBar from '@/components/cnc/StatusBar';
 import ScreenshotButton from '@/components/cnc/ScreenshotButton';
 import KeyboardShortcutsHelp from '@/components/cnc/KeyboardShortcutsHelp';
+import MiniMap from '@/components/cnc/MiniMap';
+import ThemeToggle from '@/components/cnc/ThemeToggle';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
+import { useTheme } from '@/hooks/useTheme';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 const Index = () => {
   const [cameraControls, setCameraControls] = useState<OrbitControlsImpl | null>(null);
   const [cameraPresetTrigger, setCameraPresetTrigger] = useState<string | null>(null);
+  
+  // Initialize theme
+  useTheme();
 
   const handleCameraRef = useCallback((ref: OrbitControlsImpl | null) => {
     setCameraControls(ref);
@@ -49,6 +55,7 @@ const Index = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <ScreenshotButton />
             <KeyboardShortcutsHelp />
             <CameraPresets controlsRef={cameraControls} triggerPreset={cameraPresetTrigger} />
@@ -63,6 +70,9 @@ const Index = () => {
           <div className="absolute top-4 right-4 text-xs text-muted-foreground bg-card/80 backdrop-blur px-3 py-2 rounded-md border border-border">
             <p>Drag to rotate • Scroll to zoom</p>
           </div>
+          
+          {/* Mini-map */}
+          <MiniMap />
         </div>
 
         {/* Status Bar */}
