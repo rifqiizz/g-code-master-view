@@ -20,6 +20,20 @@ interface WorkpieceConfig {
   origin: { x: number; y: number; z: number };
 }
 
+// Measurement point interface
+interface MeasurementPoint {
+  x: number;
+  y: number;
+  z: number;
+  label: string;
+}
+
+// Depth filter interface
+interface DepthFilter {
+  min: number;
+  max: number;
+}
+
 interface GCodeState {
   // Raw G-code text
   gcodeText: string;
@@ -60,6 +74,19 @@ interface GCodeState {
   setWorkpieceMaterial: (material: string) => void;
   setWorkpieceManualMode: (manual: boolean) => void;
   
+  // Measurement tools
+  measurementMode: boolean;
+  setMeasurementMode: (enabled: boolean) => void;
+  measurementPoints: MeasurementPoint[];
+  addMeasurementPoint: (point: MeasurementPoint) => void;
+  clearMeasurementPoints: () => void;
+  
+  // Depth visualization
+  depthColorEnabled: boolean;
+  toggleDepthColor: () => void;
+  depthFilter: DepthFilter;
+  setDepthFilter: (filter: DepthFilter) => void;
+  
   // Actions
   play: () => void;
   pause: () => void;
@@ -97,6 +124,11 @@ const DEFAULT_WORKPIECE_CONFIG: WorkpieceConfig = {
   origin: { x: 0, y: 0, z: 0 },
 };
 
+const DEFAULT_DEPTH_FILTER: DepthFilter = {
+  min: -100,
+  max: 10,
+};
+
 // Load persisted state
 const loadPersistedState = () => {
   try {
@@ -111,6 +143,8 @@ const loadPersistedState = () => {
         toolDiameter: parsed.toolDiameter || 3,
         visibility: { ...DEFAULT_VISIBILITY, ...parsed.visibility },
         workpieceConfig: { ...DEFAULT_WORKPIECE_CONFIG, ...parsed.workpieceConfig },
+        depthColorEnabled: parsed.depthColorEnabled || false,
+        depthFilter: parsed.depthFilter || DEFAULT_DEPTH_FILTER,
       };
     }
   } catch (e) {
@@ -124,6 +158,8 @@ const loadPersistedState = () => {
     toolDiameter: 3,
     visibility: DEFAULT_VISIBILITY,
     workpieceConfig: DEFAULT_WORKPIECE_CONFIG,
+    depthColorEnabled: false,
+    depthFilter: DEFAULT_DEPTH_FILTER,
   };
 };
 
@@ -199,6 +235,31 @@ export const useGCodeStore = create<GCodeState>((set, get) => ({
     const newConfig = { ...get().workpieceConfig, manualMode: manual };
     set({ workpieceConfig: newConfig });
     persistState({ workpieceConfig: newConfig });
+  },
+  
+  // Measurement tools
+  measurementMode: false,
+  setMeasurementMode: (enabled) => set({ measurementMode: enabled }),
+  measurementPoints: [],
+  addMeasurementPoint: (point) => {
+    const points = get().measurementPoints;
+    // Keep only last 2 points for distance calculation
+    const newPoints = points.length >= 2 ? [points[1], point] : [...points, point];
+    set({ measurementPoints: newPoints });
+  },
+  clearMeasurementPoints: () => set({ measurementPoints: [] }),
+  
+  // Depth visualization
+  depthColorEnabled: persistedState.depthColorEnabled,
+  toggleDepthColor: () => {
+    const newValue = !get().depthColorEnabled;
+    set({ depthColorEnabled: newValue });
+    persistState({ depthColorEnabled: newValue });
+  },
+  depthFilter: persistedState.depthFilter,
+  setDepthFilter: (filter) => {
+    set({ depthFilter: filter });
+    persistState({ depthFilter: filter });
   },
   
   play: () => set({ isPlaying: true }),

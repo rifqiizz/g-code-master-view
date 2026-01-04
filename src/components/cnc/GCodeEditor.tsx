@@ -6,6 +6,9 @@ import ToolSettings from './ToolSettings';
 import VisibilityPanel from './VisibilityPanel';
 import ValidationPanel from './ValidationPanel';
 import WorkpieceSettings from './WorkpieceSettings';
+import MeasurementTools from './MeasurementTools';
+import BoundsDisplay from './BoundsDisplay';
+import DepthFilter from './DepthFilter';
 
 const GCodeEditor = () => {
   const { gcodeText, setGcodeText, parsedData, currentLineIndex } = useGCodeStore();
@@ -102,6 +105,15 @@ const GCodeEditor = () => {
       
       {/* Panels - scrollable section */}
       <div className="flex-shrink-0 overflow-y-auto scrollbar-thin max-h-[50%]">
+        {/* Measurement Tools */}
+        <MeasurementTools />
+        
+        {/* Bounding Box Display */}
+        <BoundsDisplay />
+        
+        {/* Depth Visualization */}
+        <DepthFilter />
+        
         {/* Tool Settings */}
         <ToolSettings />
         
